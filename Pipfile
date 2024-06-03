@@ -10,6 +10,10 @@ shinywidgets = "*"
 plotly = "*"
 pandas = "*"
 ridgeplot = "*"
+scipy = "*"
+numpy = "*"
+statsmodels = "*"
+matplotlib = "*"
 
 [dev-packages]
 

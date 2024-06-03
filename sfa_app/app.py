@@ -25,7 +25,7 @@ with ui.sidebar(bg="#F5F5F5"):
     )
     with ui.panel_conditional("input.datafile_selection.includes('example_datafile')"):
         
-        ui.input_select("ineff_distr", "Distribution of the inefficiency term", ["A", "B", "C"])
+        ui.input_select("ineff_distr", "Distribution of the inefficiency term", ["Half-normal", "Exponential", "Truncated normal", "Gamma"])
 
 
 with ui.panel_conditional("!input.datafile_selection.includes('example_datafile')"):
@@ -50,4 +50,4 @@ with ui.panel_conditional("input.datafile_selection.includes('example_datafile')
         with ui.nav_panel("Result"):
             @render.text
             def f():
-                return input.ineff_distr
+                return input.ineff_distr.get()
