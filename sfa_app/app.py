@@ -1,21 +1,14 @@
 from shiny.express import ui, render, input
 
 
-from shared import data_dir, data_files
+from shared import data_dir, data_files, md_render
 import pandas as pd
+from markdown_it.main import MarkdownIt
 
-
-# ui.input_checkbox("show", "Show radio buttons", False)
-
-# with ui.panel_conditional("input.show"):
-#     ui.input_radio_buttons("radio", "Choose ", ["slider", "select"])
-
-# with ui.panel_conditional("input.show && input.radio === 'slider'"):
-#     ui.input_slider("slider", None, min=0, max=100, value=50)
-
-# with ui.panel_conditional("input.show && input.radio === 'select'"):
-#     ui.input_select("select", None, ["A", "B", "C"])
-
+# ui.HTML(r"""<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js"></script>""")
+ui.HTML(r"""<script type="text/javascript" async
+        src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+    </script>""")
 with ui.sidebar(bg="#F5F5F5"):
     ui.input_select("datafile_selection", "Choose the data", 
         {
@@ -24,9 +17,9 @@ with ui.sidebar(bg="#F5F5F5"):
         }
     )
     with ui.panel_conditional("input.datafile_selection.includes('example_datafile')"):
-        
         ui.input_select("ineff_distr", "Distribution of the inefficiency term", ["Half-normal", "Exponential", "Truncated normal", "Gamma"])
 
+# MAIN PAGE
 
 with ui.panel_conditional("!input.datafile_selection.includes('example_datafile')"):
     "Not implemented"
@@ -51,3 +44,14 @@ with ui.panel_conditional("input.datafile_selection.includes('example_datafile')
             @render.text
             def f():
                 return input.ineff_distr.get()
+
+        with ui.nav_panel("Dataset explanation"):
+            # @render.text
+            # def g():
+            #     return input.ineff_distr.get()
+            ui.markdown(
+                r"""
+                $ac^x$
+                """
+            ,
+            render_func=md_render)
