@@ -4,6 +4,8 @@ from shiny import reactive
 from shared import data_dir, data_files, md_render, mds
 from reactive import example_datafile_data 
 
+from sfa_math import ols
+
 import pandas as pd
 
 # Sidebar options
@@ -17,7 +19,6 @@ OPTIONS = {
 @reactive.effect
 @reactive.event(input.datafile_selection, input.salvador_Participation, input.salvador_fullten, input.salvador_ageold60, input.salvador_nooutinc, input.salvador_footaccess, input.salvador_caraccess, input.salvador_dum01, input.salvador_dum02, input.salvador_dum03, input.salvador_dum04)
 def _():
-    print("a")
     if "example_datafile" not in (selection := input.datafile_selection.get()):
         return
     
@@ -66,8 +67,8 @@ with ui.panel_conditional("!input.datafile_selection.includes('example_datafile'
 @reactive.calc
 def sfa():
     data = example_datafile_data.get()
-    print(len(data))
-    return len(data)
+    result = ols(data, "loutput", ["fam_electricidad", "fam_letrinas"])
+    return result.params
 
 @expressify
 def elsalvador():
@@ -95,8 +96,9 @@ def elsalvador():
                         return render.DataGrid(data)
 
             with ui.nav_panel("Result"):
-                @render.text
-                def f():
-                    return sfa()
+                with ui.card():
+                    @render.text
+                    def f():
+                        return sfa()
 
 elsalvador()
