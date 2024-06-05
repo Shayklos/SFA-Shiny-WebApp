@@ -1,57 +1,102 @@
-from shiny.express import ui, render, input
+from shiny.express import ui, render, input, expressify
+from shiny import reactive
 
+from shared import data_dir, data_files, md_render, mds
+from reactive import example_datafile_data 
 
-from shared import data_dir, data_files, md_render
 import pandas as pd
-from markdown_it.main import MarkdownIt
 
-# ui.HTML(r"""<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js"></script>""")
+# Sidebar options
+OPTIONS = {
+            "Example files": {f"example_datafile:{element.name}": element.name for i, element in enumerate(data_files)},
+            "Personalized data": {"w":"Write my own data", "r":"Create random data", "u":"Upload file"}
+        }
+
+
+
+@reactive.effect
+@reactive.event(input.datafile_selection, input.salvador_Participation, input.salvador_fullten, input.salvador_ageold60, input.salvador_nooutinc, input.salvador_footaccess, input.salvador_caraccess, input.salvador_dum01, input.salvador_dum02, input.salvador_dum03, input.salvador_dum04)
+def _():
+    print("a")
+    if "example_datafile" not in (selection := input.datafile_selection.get()):
+        return
+    
+    if "elsalvador" in selection:
+        file = [f for f in data_files if f.name == "elsalvador.csv"][0]
+        data = pd.read_csv(file)
+        filters = ["Participation", "fullten", "ageold60", "nooutinc", "footaccess", "caraccess", "dum01", "dum02", "dum03", "dum04"]
+        for filter in filters:
+            if input["salvador_" + filter].get() == '0':
+                data = data[data[filter] == 0]
+            elif input["salvador_" + filter].get() == '1':
+                data = data[data[filter] == 1]
+        example_datafile_data.set(data)
+
+
+
+
 ui.HTML(r"""<script type="text/javascript" async
         src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
     </script>""")
+ui.h1("Stochastic Frontier Analaysis")
+
 with ui.sidebar(bg="#F5F5F5"):
-    ui.input_select("datafile_selection", "Choose the data", 
-        {
-            "Example files": {f"example_datafile:{i}": element.name for i, element in enumerate(data_files)},
-            "Personalized data": {"w":"Write my own data", "r":"Create random data", "u":"Upload file"}
-        }
-    )
+    ui.input_select("datafile_selection", "Choose the data", OPTIONS)
     with ui.panel_conditional("input.datafile_selection.includes('example_datafile')"):
         ui.input_select("ineff_distr", "Distribution of the inefficiency term", ["Half-normal", "Exponential", "Truncated normal", "Gamma"])
+        with ui.panel_conditional("input.datafile_selection === 'example_datafile:elsalvador.csv'"):
+            with ui.card():
+                "Data filters"
+                ui.input_select("salvador_Participation", "Participation", [0,1,"Any"], selected="Any")
+                ui.input_select("salvador_fullten", "fullten", [0,1,"Any"], selected="Any")
+                ui.input_select("salvador_ageold60", "ageold60", [0,1,"Any"], selected="Any")
+                ui.input_select("salvador_nooutinc", "nooutinc", [0,1,"Any"], selected="Any")
+                ui.input_select("salvador_footaccess", "footaccess", [0,1,"Any"], selected="Any")
+                ui.input_select("salvador_caraccess", "caraccess", [0,1,"Any"], selected="Any")
+                ui.input_select("salvador_dum01", "dum01", [0,1,"Any"], selected="Any")
+                ui.input_select("salvador_dum02", "dum02", [0,1,"Any"], selected="Any")
+                ui.input_select("salvador_dum03", "dum03", [0,1,"Any"], selected="Any")
+                ui.input_select("salvador_dum04", "dum04", [0,1,"Any"], selected="Any")
 
 # MAIN PAGE
 
 with ui.panel_conditional("!input.datafile_selection.includes('example_datafile')"):
     "Not implemented"
 
-with ui.panel_conditional("input.datafile_selection.includes('example_datafile')"):
-    with ui.navset_pill(id="tab"):  
-        with ui.nav_panel("Data"):
-            with ui.card(full_screen=True):
-                ui.card_header("Data")
+@reactive.calc
+def sfa():
+    data = example_datafile_data.get()
+    print(len(data))
+    return len(data)
 
-                @render.data_frame
-                def table():
-                    if ':' not in (selection := input.datafile_selection.get()): 
-                        return
-                    index = int(selection.split(":")[-1])
-                    file = data_files[index]
-                    data = pd.read_csv(file)
+@expressify
+def elsalvador():
+    #For some reason I cannot move this to another file, it gets frozen at "input.xxx.get()"
+    with ui.panel_conditional("input.datafile_selection === 'example_datafile:elsalvador.csv'"):
+        with ui.navset_pill(id="tab"):  
+            with ui.nav_panel("Dataset explanation"):
+                ui.markdown(mds["elsalvador.md"])
 
-                    return render.DataGrid(data)
+            with ui.nav_panel("Data"):
+                with ui.card(full_screen=True):
+                    ui.card_header("Data")
+                    
+                    @render.data_frame
+                    def table():
+                        file = [f for f in data_files if f.name == "elsalvador.csv"][0]
+                        data = pd.read_csv(file)
+                        filters = ["Participation", "fullten", "ageold60", "nooutinc", "footaccess", "caraccess", "dum01", "dum02", "dum03", "dum04"]
+                        for filter in filters:
+                            if input["salvador_" + filter].get() == '0':
+                                data = data[data[filter] == 0]
+                            elif input["salvador_" + filter].get() == '1':
+                                data = data[data[filter] == 1]
+                        example_datafile_data.set(data)
+                        return render.DataGrid(data)
 
-        with ui.nav_panel("Result"):
-            @render.text
-            def f():
-                return input.ineff_distr.get()
+            with ui.nav_panel("Result"):
+                @render.text
+                def f():
+                    return sfa()
 
-        with ui.nav_panel("Dataset explanation"):
-            # @render.text
-            # def g():
-            #     return input.ineff_distr.get()
-            ui.markdown(
-                r"""
-                $ac^x$
-                """
-            ,
-            render_func=md_render)
+elsalvador()
