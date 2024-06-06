@@ -1,12 +1,13 @@
-from shiny.express import ui, render, input, expressify
+from shiny.express import ui, render, input, expressify, output
 from shiny import reactive
 
 from shared import data_dir, data_files, md_render, mds
 from reactive import example_datafile_data 
 
-from sfa_math import ols
+from sfa_math import ols, cols_deterministic
 
 import pandas as pd
+import numpy as np
 
 # Sidebar options
 OPTIONS = {
@@ -15,6 +16,8 @@ OPTIONS = {
         }
 
 
+ols_result = reactive.value([])
+cols_constant = reactive.value(0)
 
 @reactive.effect
 @reactive.event(input.datafile_selection, input.salvador_Participation, input.salvador_fullten, input.salvador_ageold60, input.salvador_nooutinc, input.salvador_footaccess, input.salvador_caraccess, input.salvador_dum01, input.salvador_dum02, input.salvador_dum03, input.salvador_dum04)
@@ -39,13 +42,20 @@ def _():
 ui.HTML(r"""<script type="text/javascript" async
         src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
     </script>""")
+
 ui.h1("Stochastic Frontier Analaysis")
 
 with ui.sidebar(bg="#F5F5F5"):
     ui.input_select("datafile_selection", "Choose the data", OPTIONS)
     with ui.panel_conditional("input.datafile_selection.includes('example_datafile')"):
-        ui.input_select("ineff_distr", "Distribution of the inefficiency term", ["Half-normal", "Exponential", "Truncated normal", "Gamma"])
+        with ui.card():
+            ui.input_select("ineff_distr", "Distribution of the inefficiency term", ["Half-normal", "Exponential", "Truncated normal", "Gamma"])
         with ui.panel_conditional("input.datafile_selection === 'example_datafile:elsalvador.csv'"):
+            with ui.card(height="150%"):
+                ui.input_selectize("considered_elasticities", "Considered elasticities", 
+                                   ["lland", "llabour", "lseeds", "lfertilizer", "lpesticide", "diste1"], 
+                                   selected=["lland", "llabour", "lseeds", "lfertilizer", "lpesticide", "diste1"],
+                                   multiple=True)
             with ui.card():
                 "Data filters"
                 ui.input_select("salvador_Participation", "Participation", [0,1,"Any"], selected="Any")
@@ -65,10 +75,25 @@ with ui.panel_conditional("!input.datafile_selection.includes('example_datafile'
     "Not implemented"
 
 @reactive.calc
-def sfa():
+def display_OLS():
+    # Get elasticities considered on the sidebar
+    elasticities = list(input.considered_elasticities.get())
+
+    # Compute and save ols/cols
     data = example_datafile_data.get()
-    result = ols(data, "loutput", ["fam_electricidad", "fam_letrinas"])
-    return result.params
+    result = ols(data, "loutput", elasticities)
+    ols_result.set(result)
+    cols_const = cols_deterministic(result)
+    cols_constant.set(cols_const)
+
+    # Insert cols constant to params for displaying
+    params = result.params
+    params = np.insert(params, 1, cols_const)
+
+    #Displayed dataframe (header are the elasticities name)
+    df = pd.DataFrame({name: value for name, value in zip(["constant", "cols_constant"] + elasticities, params)}, 
+                      index=['OLS'])
+    return df
 
 @expressify
 def elsalvador():
@@ -97,8 +122,9 @@ def elsalvador():
 
             with ui.nav_panel("Result"):
                 with ui.card():
-                    @render.text
+                    ui.card_header("OLS Estimation")
+                    @render.data_frame
                     def f():
-                        return sfa()
+                        return display_OLS()
 
 elsalvador()
