@@ -152,3 +152,4 @@ cython_debug/
 #.idea/
 sfa/app_old.py
 sfa_app/test.py
+sfa_app/example_app.py
