@@ -5,8 +5,8 @@ The database `elsavadordata.csv` contains the cross-section of farmers sampled i
  - **lland**: log to the total cultivated area (in manzanas where one manzana=0.7 has).
  - **llabour**: log of the total number of workers (family + hired).
  - **lseeds**: log of the value of seeds used (measured in dollars).
- - **lfertilizers**: log of the value of fertilizers used (measured in dollars).
- - **lpesticides**: log of the value of pesticides used (measured in dollars).
+ - **lfertilizer**: log of the value of fertilizers used (measured in dollars).
+ - **lpesticide**: log of the value of pesticides used (measured in dollars).
  - **Participation**: dummy variable for participation into the soil conservation program. 1 if farmer has participated, and 0 otherwise.
  - **fullten**: dummy equal to 1 if the farmer owns all her cultivated land, and 0 otherwise.
  - **ageold60**: dummy equal to 1 if the farmer is 60 and older and 0 otherwise.
