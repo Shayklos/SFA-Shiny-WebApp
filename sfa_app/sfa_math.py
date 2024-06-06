@@ -11,6 +11,10 @@ def ols(data: pd.DataFrame, y, x, constant = True):
     result = sm.OLS(y, x).fit()
     return result
 
+def cols_deterministic(ols_result):
+    print(ols_result.params[0], max(ols_result.resid))
+    print(ols_result.params)
+    return ols_result.params[0] + max(ols_result.resid)
 
 if __name__ == "__main__":
     app_dir = Path(__file__).parent
