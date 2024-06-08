@@ -4,7 +4,7 @@ from shiny import reactive
 from shared import data_dir, data_files, md_render, mds
 from reactive import example_datafile_data 
 
-from sfa_math import ols, cols_deterministic
+from sfa_math import ols, cols_deterministic, compute_frontier
 
 import pandas as pd
 import numpy as np
@@ -95,6 +95,20 @@ def display_OLS():
                       index=['OLS'])
     return df
 
+
+@reactive.calc
+def compute_SFA():
+    # Get relevant data
+    elasticities = list(input.considered_elasticities.get())
+    ols = ols_result.get()
+    cols_const = cols_constant.get()
+    data = example_datafile_data.get()
+
+    L = compute_frontier('half-normal', data, ols, cols_const, 'loutput', elasticities)
+    df = pd.DataFrame({name: value for name, value in zip(["sigma_v","sigma_u", "cols_constant"] + elasticities, L)}, 
+                      index=['OLS'])
+    return df
+
 @expressify
 def elsalvador():
     #For some reason I cannot move this to another file, it gets frozen at "input.xxx.get()"
@@ -122,9 +136,14 @@ def elsalvador():
 
             with ui.nav_panel("Result"):
                 with ui.card():
-                    ui.card_header("OLS Estimation")
+                    ui.card_header("OLS sstimation")
                     @render.data_frame
                     def f():
                         return display_OLS()
+                with ui.card():
+                    ui.card_header("Frontier estimation")
+                    @render.data_frame
+                    def g():
+                        return compute_SFA()
 
 elsalvador()
