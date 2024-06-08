@@ -3,7 +3,7 @@ import numpy as np
 
 
 class HalfNormal:
-    def __init__(self, params, name_of_elasticities=None) -> None:
+    def __init__(self, params, name_of_elasticities = None, epsilon = None) -> None:
         self.name_of_elasticities = name_of_elasticities
 
         # Basic estimations
@@ -20,6 +20,14 @@ class HalfNormal:
         # Gamma is a common paramerization of SFA normal-half normal model,
         # the interpretation is similar to lamda. If gamma =~ 0 then the noise
         # is dominant, and gamma =~ 1 means the inefficience is
+
+        # Jondrow
+        self.sigma_star = self.sigma_u*self.sigma_v/self.sigma
+        if epsilon:
+            self.mu_star = epsilon * self.sigma_u**2/self.sigma2
+        else:
+            self.mu_star = self.sigma_u**2/self.sigma2 # MISSING MULTIPLYING IT BY EPSILON
+
 
     def dataframe(self, selection="full"):
         df_sfa_estimations = pd.DataFrame(
@@ -44,3 +52,10 @@ class HalfNormal:
         df_elasticities = pd.DataFrame(elasticities,index=["elasticities"])
         return df_sfa_estimations, df_elasticities
 
+    def add_epsilon_to_mu_star(self, epsilon):
+        """mu_star is multiplied by the estimate of the compund error. If it 
+        wasn't given before, do it now
+        
+        Note that this changes self.mu_star from a float to a numpy array"""
+
+        self.mu_star = epsilon*self.mu_star
