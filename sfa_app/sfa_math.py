@@ -4,6 +4,11 @@ from pathlib import Path
 import numpy as np 
 from scipy.optimize import minimize
 from scipy.stats import norm
+from dataframes import HalfNormal
+
+ln = np.log
+f = norm.pdf
+F = norm.cdf
 
 def ols(data: pd.DataFrame, y, x, constant = True):
     x = data[x].values.tolist()
@@ -15,8 +20,6 @@ def ols(data: pd.DataFrame, y, x, constant = True):
     return result
 
 def cols_deterministic(ols_result):
-    print(ols_result.params[0], max(ols_result.resid))
-    print(ols_result.params)
     return ols_result.params[0] + max(ols_result.resid)
 
 def compute_frontier(distribution: str, data, ols, cols_const, output_str, elasticities_str):
@@ -30,9 +33,6 @@ def compute_frontier(distribution: str, data, ols, cols_const, output_str, elast
 def _compute_frontier_half_normal(data: list[float], ols: sm.regression.linear_model.RegressionResults, cols_const: float, output_str: str, elasticities_str: list[str] | str):
 
     N = len(data)
-    ln = np.log
-    f = norm.pdf
-    F = norm.cdf
 
     def log_likehood_function(epsilon, sigma, lambda_):
         sum_of_epsilon_squared = (epsilon**2).sum()
@@ -115,9 +115,6 @@ def _compute_frontier_half_normal(data: list[float], ols: sm.regression.linear_m
 def _compute_frontier_exponential(data: list[float], ols: sm.regression.linear_model.RegressionResults, cols_const: float, output_str: str, elasticities_str: list[str] | str):
 
     N = len(data)
-    ln = np.log
-    f = norm.pdf
-    F = norm.cdf
 
     def log_likehood_function(epsilon: np.ndarray, sigma_v: float, sigma_u: float):
         ll = -ln(sigma_u) + ((sigma_v/sigma_u)**2)/2 + ln(F((-epsilon - (sigma_v**2)/sigma_u)/sigma_v   )) + epsilon/sigma_u
@@ -141,7 +138,7 @@ def _compute_frontier_exponential(data: list[float], ols: sm.regression.linear_m
 
         # Instead of maximizing log-likehood function we minimize negative log-likehood function
         L = -log_likehood_function(epsilon, sigma, lambda_)
-        print(L)
+        # print(L)
         return L
 
     # Initial guess
@@ -153,7 +150,7 @@ def _compute_frontier_exponential(data: list[float], ols: sm.regression.linear_m
     params_init = np.concatenate(([sigma_uv_init, sigma_uv_init], elasticities))
 
     # Optimize the log-likehood function
-    print("Minimizing start")
+    # print("Minimizing start")
     bounds = [(0.001, None), (0.001, None)] + [(None, None)]*len(params_init[2:]) # Make sure sigma_u, sigma_v are positive
     result = minimize(frontier, params_init, method='L-BFGS-B', bounds=bounds)
 
@@ -173,15 +170,59 @@ def _compute_frontier_exponential(data: list[float], ols: sm.regression.linear_m
 
     epsilon = data[output_str] - right_hand_side
 
-    print(sigma_v, sigma_u, elasticities)
-    print("minmization", log_likehood_function(epsilon, sigma, lambda_))
+    # print(sigma_v, sigma_u, elasticities)
+    # print("minmization", log_likehood_function(epsilon, sigma, lambda_))
 
     # elasticities = ols.params
     # elasticities[0] = cols_const
     # epsilon = data[output_str] - right_hand_side
-    print(result.x)
+    # print(result.x)
     return result.x
 
+
+def estimate_inefficiency(estimation, distribution = 'half-normal'):
+    if distribution == 'half-normal':
+        return _estimate_inefficiency_half_normal(estimation)
+
+def _estimate_inefficiency_half_normal(estimation: HalfNormal, which = 'all'):
+    # Assumes mu_star has been set
+    ratio = estimation.mu_star/estimation.sigma_star
+
+    if which == 'all':
+        conditional_mean_inefficiency = estimation.mu_star + estimation.sigma_star * f(-ratio)/F(ratio)
+        conditional_mode_inefficiency = np.maximum(estimation.mu_star, 0)
+        # print(np.exp(-conditional_mean_inefficiency))
+        return conditional_mean_inefficiency, conditional_mode_inefficiency
+
+    elif which == 'mode':
+        conditional_mode_inefficiency = np.maximum(estimation.mu_star, 0)
+        return conditional_mode_inefficiency
+    
+    else: # mean
+        conditional_mean_inefficiency = estimation.mu_star + estimation.sigma_star * f(-ratio)/F(ratio)
+        return conditional_mean_inefficiency
+    
+def estimate_technical_efficiency(estimation: HalfNormal, u, exp = True):
+    # Technical efficiency is observed output/max possible output
+    print("!")
+    if isinstance(u, tuple):
+        TE = []
+        if exp:
+            for inef in u:
+                TE.append(np.exp(-inef))
+        else:
+            for inef in u:
+                TE.append((estimation.rhs - inef)/estimation.rhs)
+
+    else:
+        if exp: 
+            TE = np.exp(-u)
+        else:
+            TE = (estimation.rhs - u)/estimation.rhs
+
+        np.divide()
+
+    return TE
 
 if __name__ == "__main__":
     app_dir = Path(__file__).parent

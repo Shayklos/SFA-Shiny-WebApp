@@ -4,7 +4,8 @@ from shiny import reactive
 from shared import data_dir, data_files, md_render, mds
 from reactive import example_datafile_data 
 
-from sfa_math import ols, cols_deterministic, compute_frontier
+from sfa_math import ols, cols_deterministic, compute_frontier, estimate_inefficiency, estimate_technical_efficiency
+from dataframes import HalfNormal
 
 import pandas as pd
 import numpy as np
@@ -18,6 +19,7 @@ OPTIONS = {
 
 ols_result = reactive.value([])
 cols_constant = reactive.value(0)
+sfa_result = reactive.value()
 
 @reactive.effect
 @reactive.event(input.datafile_selection, input.salvador_Participation, input.salvador_fullten, input.salvador_ageold60, input.salvador_nooutinc, input.salvador_footaccess, input.salvador_caraccess, input.salvador_dum01, input.salvador_dum02, input.salvador_dum03, input.salvador_dum04)
@@ -104,10 +106,14 @@ def compute_SFA():
     cols_const = cols_constant.get()
     data = example_datafile_data.get()
 
-    L = compute_frontier('half-normal', data, ols, cols_const, 'loutput', elasticities)
-    df = pd.DataFrame({name: value for name, value in zip(["sigma_v","sigma_u", "cols_constant"] + elasticities, L)}, 
-                      index=['OLS'])
-    return df
+    result = compute_frontier('half-normal', data, ols, cols_const, 'loutput', elasticities)
+    sfa = HalfNormal(result, elasticities)
+    sfa_result.set(sfa)
+
+    sfa.add_compund_error(data, 'loutput')
+    sfa.add_epsilon_to_mu_star()
+
+    return
 
 @expressify
 def elsalvador():
@@ -136,7 +142,7 @@ def elsalvador():
 
             with ui.nav_panel("Result"):
                 with ui.card():
-                    ui.card_header("OLS sstimation")
+                    ui.card_header("OLS estimation")
                     @render.data_frame
                     def f():
                         return display_OLS()
@@ -144,6 +150,22 @@ def elsalvador():
                     ui.card_header("Frontier estimation")
                     @render.data_frame
                     def g():
-                        return compute_SFA()
+                        compute_SFA()
+                        return sfa_result.get().dataframe()[0]
+                    @render.data_frame
+                    def h():
+                        return sfa_result.get().dataframe()[1]
+                with ui.card():
+                    ui.card_header("Estimation of inefficiency per observation")
+                    @render.data_frame
+                    def j():
+                        sfa = sfa_result.get()
+                        inef = estimate_inefficiency(sfa, 'half-normal')
+                        te = estimate_technical_efficiency(sfa, inef)
+                        df = example_datafile_data.get().copy()
+                        df.insert(0, 'efficiency_mode', te[1])
+                        df.insert(0, 'efficiency_mean', te[0])
+                        return df
+
 
 elsalvador()

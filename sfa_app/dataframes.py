@@ -28,6 +28,8 @@ class HalfNormal:
         else:
             self.mu_star = self.sigma_u**2/self.sigma2 # MISSING MULTIPLYING IT BY EPSILON
 
+        self.epsilon = epsilon
+        self.rhs = None
 
     def dataframe(self, selection="full"):
         df_sfa_estimations = pd.DataFrame(
@@ -52,10 +54,30 @@ class HalfNormal:
         df_elasticities = pd.DataFrame(elasticities,index=["elasticities"])
         return df_sfa_estimations, df_elasticities
 
-    def add_epsilon_to_mu_star(self, epsilon):
+    def add_compund_error(self, data, output_column = 'loutput'):
+        if not self.name_of_elasticities:
+            raise Exception
+        
+        self.rhs = self.intercept
+        for i, param in enumerate(self.name_of_elasticities):
+            self.rhs = self.rhs + data[param] * self.elasticities[i + 1]
+
+        if isinstance(output_column, str):
+            self.epsilon = data[output_column] - self.rhs
+        else:
+            self.epsilon = output_column - self.rhs
+
+
+    def add_epsilon_to_mu_star(self, epsilon = None):
         """mu_star is multiplied by the estimate of the compund error. If it 
         wasn't given before, do it now
         
         Note that this changes self.mu_star from a float to a numpy array"""
 
-        self.mu_star = epsilon*self.mu_star
+        if epsilon:        
+            self.mu_star = epsilon*self.mu_star
+        elif self.epsilon is not None:
+            self.mu_star = self.epsilon*self.mu_star
+        else:
+            raise Exception
+
