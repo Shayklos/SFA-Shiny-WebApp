@@ -1,3 +1,7 @@
+# Archived repository
+This webapp has been rewritten in R [and can be found in this repository](https://github.com/Shayklos/SFA-RShiny-WebApp).
+
+
 # Local development
 How to run the app locally:
 
